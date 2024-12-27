@@ -48,6 +48,9 @@ spec:
       #             operator: In
       #             values:
       #               - linux
+      tolerations:
+        - key: system/node-group
+          operator: Exists
       securityContext:
         runAsNonRoot: true
         # TODO(user): For common cases that do not require escalating privileges
