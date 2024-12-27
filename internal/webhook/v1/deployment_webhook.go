@@ -22,13 +22,14 @@ import (
 	tensorboard "github.com/kubeflow/kubeflow/components/tensorboard-controller/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
+
+const tolerationKey = "system/node-group"
 
 // nolint:unused
 // log is for logging in this package.
@@ -67,19 +68,32 @@ func (d *DeploymentCustomDefaulter) Default(ctx context.Context, obj runtime.Obj
 	}
 	deploymentlog.Info("Defaulting for Deployment", "name", deployment.GetName())
 
-	// TODO(user): fill in your defaulting logic.
-	//tb, err := d.getTensorboardFromDeployment(ctx, d.Client, deployment)
-	//if err != nil {
-	//	deploymentlog.Error(err, "fail to get tensorborad")
-	//}
-	//
-	//fmt.Println("===================================>", tb.Annotations)
+	tb, err := d.getTensorboardFromDeployment(ctx, d.Client, deployment)
+	if err != nil {
+		deploymentlog.Error(err, "fail to get tensorboard")
+	}
+	if tb == nil {
+		return nil
+	}
 
-	toleration := corev1.Toleration{
-		Key:      "system/node-group",
-		Operator: corev1.TolerationOpEqual,
-		Value:    "taint-e625069",
-		Effect:   corev1.TaintEffectNoSchedule,
+	var toleration corev1.Toleration
+	nodeGroup, ok := tb.Annotations[tolerationKey]
+	if ok {
+		toleration = corev1.Toleration{
+			Key:      tolerationKey,
+			Operator: corev1.TolerationOpEqual,
+			Value:    nodeGroup,
+			Effect:   corev1.TaintEffectNoSchedule,
+		}
+		selector := map[string]string{
+			tolerationKey: nodeGroup,
+		}
+		deployment.Spec.Template.Spec.NodeSelector = selector
+	} else {
+		toleration = corev1.Toleration{
+			Key:      tolerationKey,
+			Operator: corev1.TolerationOpExists,
+		}
 	}
 
 	if deployment.Spec.Template.Spec.Tolerations == nil {
@@ -93,22 +107,17 @@ func (d *DeploymentCustomDefaulter) Default(ctx context.Context, obj runtime.Obj
 // getTensorboardFromDeployment
 func (d *DeploymentCustomDefaulter) getTensorboardFromDeployment(ctx context.Context, k8sClient client.Client, deployment *appsv1.Deployment) (*tensorboard.Tensorboard, error) {
 	for _, ownerRef := range deployment.OwnerReferences {
-		if ownerRef.Kind == "Tensorboard" && ownerRef.APIVersion == "kubeflow.org/v1" {
-			tensorboard := &tensorboard.Tensorboard{
-				TypeMeta:   metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{},
-				Spec:       tensorboard.TensorboardSpec{},
-				Status:     tensorboard.TensorboardStatus{},
-			}
+		if ownerRef.Kind == "Tensorboard" && ownerRef.APIVersion == "tensorboard.kubeflow.org/v1alpha1" {
+			tb := &tensorboard.Tensorboard{}
 			err := k8sClient.Get(ctx, client.ObjectKey{
 				Namespace: deployment.Namespace,
 				Name:      ownerRef.Name,
-			}, tensorboard)
+			}, tb)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get Tensorboard object: %w", err)
 			}
-			return tensorboard, nil
+			return tb, nil
 		}
 	}
-	return nil, fmt.Errorf("no Tensorboard owner found for Deployment %s", deployment.Name)
+	return nil, nil
 }

@@ -25,6 +25,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	tensorboard "github.com/kubeflow/kubeflow/components/tensorboard-controller/api/v1alpha1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -45,6 +47,9 @@ var (
 )
 
 func init() {
+	if err := tensorboard.AddToScheme(scheme); err != nil {
+		setupLog.Error(err, "Failed to add Tensorboard to scheme: %v")
+	}
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme

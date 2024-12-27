@@ -9,3 +9,6 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "watch"]
+- apiGroups: ["tensorboard.kubeflow.org"]
+  resources: ["tensorboards"]
+  verbs: ["get", "list", "watch"]
