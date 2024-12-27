@@ -1,8 +1,16 @@
 # tb-deployment-webhook
-// TODO(user): Add simple overview of use/purpose
+webhook to set toleration deployment from Kubeflow tensorboard CR
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+This Webhook is designed to handle defaulting logic for Kubernetes Deployments that are associated with Tensorboard objects in a Kubeflow environment. It ensures that deployments created by Tensorboard resources have the necessary configurations applied automatically.
+
+The Webhook performs the following tasks:
+
+1. **Identifying Ownership**: It traverses the OwnerReferences of the Deployment to find the associated Tensorboard resource.
+2. **Fetching Tensorboard Annotations**: Once the Tensorboard object is identified, the Webhook retrieves specific annotations from it, such as tolerations or other custom configurations.
+3. **Applying Defaults**: Based on the Tensorboard annotations, the Webhook applies default values (e.g., tolerations, affinity rules) to the Deployment.
+
+This Webhook ensures consistency and reduces the need for manual intervention when deploying Tensorboard-related resources in a Kubeflow-managed Kubernetes cluster.
 
 ## Getting Started
 
