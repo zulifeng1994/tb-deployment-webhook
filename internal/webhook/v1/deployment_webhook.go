@@ -29,7 +29,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-const tolerationKey = "system/node-group"
+const (
+	tolerationKey    = "system/node-group"
+	tensorboardImage = "tensorboard/image"
+)
 
 // nolint:unused
 // log is for logging in this package.
@@ -93,12 +96,15 @@ func (d *DeploymentCustomDefaulter) Default(ctx context.Context, obj runtime.Obj
 			Operator: corev1.TolerationOpExists,
 		}
 	}
-
 	if deployment.Spec.Template.Spec.Tolerations == nil {
 		deployment.Spec.Template.Spec.Tolerations = []corev1.Toleration{}
 	}
-
 	deployment.Spec.Template.Spec.Tolerations = append(deployment.Spec.Template.Spec.Tolerations, toleration)
+
+	image, ok := tb.Annotations[tensorboardImage]
+	if ok {
+		deployment.Spec.Template.Spec.Containers[0].Image = image
+	}
 	return nil
 }
 
